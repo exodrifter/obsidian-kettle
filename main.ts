@@ -1,4 +1,4 @@
-import { App, Notice, Plugin, PluginSettingTab, Setting, normalizePath } from 'obsidian';
+import { App, Notice, Plugin, PluginSettingTab, Setting, moment, normalizePath } from 'obsidian';
 
 interface KettleSettings {
 	location: string;
@@ -24,18 +24,12 @@ export default class Kettle extends Plugin {
 			if (fileExists) {
 				throw new Error(`${path} already exists!`);
 			}
-			const file = await this.app.vault.create(path, '');
+
 			// Create the file and open it in the active leaf
+			const file = await this.app.vault.create(path, '');
 			let leaf = this.app.workspace.getLeaf(false);
-			if (this.mode === "new-pane") {
-				leaf = this.app.workspace.splitLeafOrActive();
-			} else if (this.mode === "new-tab") {
-				leaf = this.app.workspace.getLeaf(true);
-			} else if (!leaf) {
-				// default for active pane
-				leaf = this.app.workspace.getLeaf(true);
-			}
 			await leaf.openFile(file);
+
 		} catch (error) {
 			new Notice(error.toString());
 		}
@@ -112,7 +106,7 @@ class KettleSettingTab extends PluginSettingTab {
 				}));
 	}
 
-	formatExample(): String {
+	formatExample(): string {
 		const example = moment().utc().format(this.plugin.settings.format)
 		return `moment.js format string. Currently: ${example}`
 	}
