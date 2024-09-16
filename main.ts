@@ -15,6 +15,7 @@ export default class Kettle extends Plugin {
 
 	async createUniqueNote(): Promise<void> {
 		const name = moment().utc().format(this.settings.format);
+		const timestamp = moment().utc().format("YYYY-MM-DDTHH:mm:ss[Z]");
 		const path = normalizePath(`/${this.settings.location}/${name}.md`);
 		console.log(path)
 
@@ -26,7 +27,10 @@ export default class Kettle extends Plugin {
 			}
 
 			// Create the file and open it in the active leaf
-			const file = await this.app.vault.create(path, '');
+			const file = await this.app.vault.create(
+				path,
+				`---\ncreated: ${timestamp}\n---\n\n`
+			);
 			let leaf = this.app.workspace.getLeaf(false);
 			await leaf.openFile(file);
 
