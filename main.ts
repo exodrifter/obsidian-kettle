@@ -1,4 +1,13 @@
-import { App, Notice, Plugin, PluginSettingTab, Setting, moment, normalizePath } from 'obsidian';
+import {
+	App,
+	moment,
+	normalizePath,
+	Notice,
+	Plugin,
+	PluginSettingTab,
+	Setting,
+	TFile,
+} from 'obsidian';
 
 const DEFAULT_FILE_FORMAT = 'YYYYMMDDHHmmss'
 const DEFAULT_META_FORMAT = 'YYYY-MM-DDTHH:mm:ssZ'
@@ -50,6 +59,20 @@ export default class Kettle extends Plugin {
 		}
 	}
 
+	async updateModificationTimestamp(file: TFile): Promise<void> {
+		try {
+			await this.app.fileManager.processFrontMatter(file, (frontMatter) => {
+				frontMatter["modified"] =
+					this.settings.metaFormatInUTC
+						? moment().utc().format(this.settings.metaFormat)
+						: moment().format(this.settings.metaFormat);
+			})
+
+		} catch (error) {
+			new Notice(error.toString());
+		}
+	}
+
 	async onload() {
 		await this.loadSettings();
 
@@ -58,13 +81,25 @@ export default class Kettle extends Plugin {
 			await this.createUniqueNote()
 		});
 
-		// This adds a simple command that can be triggered anywhere
+		// This adds a command to create a new note.
 		this.addCommand({
 			id: 'create-new-unique-note',
 			name: 'Create new unique note',
 			callback: async () => {
 				await this.createUniqueNote()
 			}
+		});
+
+		// This adds a command to update the modified timestamp.
+		this.addCommand({
+			id: 'update-modification-timestamp',
+			name: 'Update modification timestamp',
+			callback: async () => {
+				const file = this.app.workspace.getActiveFile()
+				if (file !== null) {
+					await this.updateModificationTimestamp(file)
+				}
+			},
 		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
