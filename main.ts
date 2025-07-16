@@ -1,35 +1,46 @@
 import { App, Notice, Plugin, PluginSettingTab, Setting, moment, normalizePath } from 'obsidian';
 
+const DEFAULT_FILE_FORMAT = 'YYYYMMDDHHmmss'
+const DEFAULT_META_FORMAT = 'YYYY-MM-DDTHH:mm:ssZ'
+
 interface KettleSettings {
 	location: string;
-	format: string;
+	fileFormat: string;
+	fileFormatInUTC: boolean;
+	metaFormat: string;
+	metaFormatInUTC: boolean;
 }
 
 const DEFAULT_SETTINGS: KettleSettings = {
 	location: '',
-	format: 'YYYYMMDDHHmmss',
+	fileFormat: DEFAULT_FILE_FORMAT,
+	fileFormatInUTC: true,
+	metaFormat: DEFAULT_META_FORMAT,
+	metaFormatInUTC: false,
 }
 
 export default class Kettle extends Plugin {
 	settings: KettleSettings;
 
 	async createUniqueNote(): Promise<void> {
-		const name = moment().utc().format(this.settings.format);
-		const timestamp = moment().utc().format("YYYY-MM-DDTHH:mm:ss[Z]");
+		const name = this.settings.fileFormatInUTC
+			? moment().utc().format(this.settings.fileFormat)
+			: moment().format(this.settings.fileFormat)
 		const path = normalizePath(`/${this.settings.location}/${name}.md`);
-		console.log(path)
 
 		try {
-			console.log(this.app)
 			const fileExists = await this.app.vault.adapter.exists(path);
 			if (fileExists) {
 				throw new Error(`${path} already exists!`);
 			}
 
 			// Create the file and open it in the active leaf
+			const created = this.settings.metaFormatInUTC
+				? moment().utc().format(this.settings.metaFormat)
+				: moment().format(this.settings.metaFormat)
 			const file = await this.app.vault.create(
 				path,
-				`---\ncreated: ${timestamp}\n---\n\n`
+				`---\ncreated: ${created}\n---\n\n`
 			);
 			let leaf = this.app.workspace.getLeaf(false);
 			await leaf.openFile(file);
@@ -60,10 +71,6 @@ export default class Kettle extends Plugin {
 		this.addSettingTab(new KettleSettingTab(this.app, this));
 	}
 
-	onunload() {
-
-	}
-
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 	}
@@ -83,8 +90,9 @@ class KettleSettingTab extends PluginSettingTab {
 
 	display(): void {
 		const {containerEl} = this;
-
 		containerEl.empty();
+
+		const kettle = this.plugin.settings
 
 		new Setting(containerEl)
 			.setName('New file location')
@@ -97,21 +105,56 @@ class KettleSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		const setting = new Setting(containerEl)
-		setting.setName('Unique prefix format')
-			.setDesc(this.formatExample())
+		const fileSetting = new Setting(containerEl)
+		fileSetting.setName("Filename format")
+			.setDesc(this.formatExample(kettle.fileFormat, kettle.fileFormatInUTC))
 			.addText(text => text
 				.setPlaceholder('YYYYMMDDHHmmss')
-				.setValue(this.plugin.settings.format)
+				.setValue(kettle.fileFormat)
 				.onChange(async (value) => {
-					this.plugin.settings.format = value;
+					this.plugin.settings.fileFormat = value;
 					await this.plugin.saveSettings();
-					setting.setDesc(this.formatExample())
+					fileSetting.setDesc(this.formatExample(kettle.fileFormat, kettle.fileFormatInUTC))
+				}));
+
+		new Setting(containerEl).setName("Filename format in UTC")
+			.setDesc("If true, render the filename format in UTC.")
+			.addToggle(v => v
+				.setValue(kettle.fileFormatInUTC)
+				.onChange(async (value) => {
+					this.plugin.settings.fileFormatInUTC = value;
+					await this.plugin.saveSettings();
+					fileSetting.setDesc(this.formatExample(kettle.fileFormat, kettle.fileFormatInUTC))
+				}));
+
+		const metaSetting = new Setting(containerEl)
+		metaSetting.setName('Metadata format')
+			.setDesc(this.formatExample(kettle.metaFormat, kettle.metaFormatInUTC))
+			.addText(text => text
+				.setPlaceholder(DEFAULT_META_FORMAT)
+				.setValue(kettle.metaFormat)
+				.onChange(async (value) => {
+					this.plugin.settings.metaFormat = value;
+					await this.plugin.saveSettings();
+					metaSetting.setDesc(this.formatExample(kettle.metaFormat, kettle.metaFormatInUTC))
+				}));
+
+		new Setting(containerEl).setName("Metadata format in UTC")
+			.setDesc("If true, render the metadata format in UTC.")
+			.addToggle(v => v
+				.setValue(kettle.metaFormatInUTC)
+				.onChange(async (value) => {
+					this.plugin.settings.metaFormatInUTC = value;
+					await this.plugin.saveSettings();
+					metaSetting.setDesc(this.formatExample(kettle.metaFormat, kettle.metaFormatInUTC))
 				}));
 	}
 
-	formatExample(): string {
-		const example = moment().utc().format(this.plugin.settings.format)
-		return `moment.js format string. Currently: ${example}`
+	format(f: string, inUTC: boolean): string {
+		return inUTC ? moment().utc().format(f) : moment().format(f)
+	}
+
+	formatExample(f: string, inUTC: boolean): string {
+		return `moment.js format string. Currently: ${this.format(f, inUTC)}`
 	}
 }
