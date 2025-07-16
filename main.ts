@@ -7,7 +7,7 @@ interface KettleSettings {
 
 const DEFAULT_SETTINGS: KettleSettings = {
 	location: '',
-	format: 'YYYYMMDD_kkmmss',
+	format: 'YYYYMMDDHHmmss',
 }
 
 export default class Kettle extends Plugin {
@@ -101,7 +101,7 @@ class KettleSettingTab extends PluginSettingTab {
 		setting.setName('Unique prefix format')
 			.setDesc(this.formatExample())
 			.addText(text => text
-				.setPlaceholder('YYYYMMDD_kkmmss')
+				.setPlaceholder('YYYYMMDDHHmmss')
 				.setValue(this.plugin.settings.format)
 				.onChange(async (value) => {
 					this.plugin.settings.format = value;
